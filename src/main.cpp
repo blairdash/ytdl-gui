@@ -101,7 +101,13 @@ static void StartDownload() {
         std::wstring f = h ? L"bv*[height<=" + std::to_wstring(h) + L"]+ba/b[height<=" + std::to_wstring(h) + L"]" : L"bv*+ba/b";
         cmd += L" -f " + Quote(f) + L" --merge-output-format mp4";
     }
-    { wchar_t tb[MAX_PATH]; if (!SearchPathW(nullptr, L"deno.exe", nullptr, MAX_PATH, tb, nullptr) && SearchPathW(nullptr, L"node.exe", nullptr, MAX_PATH, tb, nullptr)) cmd += L" --js-runtimes node"; }
+    {   // Use the Deno / ffmpeg the installer put next to the exe; otherwise fall back to PATH (and Node for YouTube).
+        wchar_t eb[MAX_PATH]; GetModuleFileNameW(nullptr, eb, MAX_PATH);
+        fs::path here = fs::path(eb).parent_path(); wchar_t tb[MAX_PATH];
+        if (fs::exists(here / L"deno.exe")) cmd += L" --js-runtimes " + Quote(L"deno:" + (here / L"deno.exe").wstring());
+        else if (!SearchPathW(nullptr, L"deno.exe", nullptr, MAX_PATH, tb, nullptr) && SearchPathW(nullptr, L"node.exe", nullptr, MAX_PATH, tb, nullptr)) cmd += L" --js-runtimes node";
+        if (fs::exists(here / L"ffmpeg.exe")) cmd += L" --ffmpeg-location " + Quote(here.wstring());
+    }
     cmd += L" " + Quote(url);
     SetWindowTextW(hLog, L""); SendMessageW(hBar, PBM_SETPOS, 0, 0); SetWindowTextW(hStatus, L"Downloading..."); gCancel = false; SetBusy(true);
     HANDLE t = CreateThread(nullptr, 0, Worker, new Job{cmd}, 0, nullptr); if (t) CloseHandle(t);
